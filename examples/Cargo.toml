@@ -1,0 +1,36 @@
+[package]
+name = "bexa-ui-examples"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bexa-ui = { path = "../crates/bexa-ui" }
+
+[[example]]
+name = "hello"
+path = "hello.rs"
+
+[[example]]
+name = "dashboard"
+path = "dashboard.rs"
+
+[[example]]
+name = "buttons_status"
+path = "buttons_status.rs"
+
+[[example]]
+name = "form_fake"
+path = "form_fake.rs"
+
+[[example]]
+name = "layout_grid"
+path = "layout_grid.rs"
+
+[[example]]
+name = "list_fake"
+path = "list_fake.rs"
+
+[[example]]
+name = "theme_gallery"
+path = "theme_gallery.rs"

@@ -1,0 +1,10 @@
+[package]
+name = "bexa-ui-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+winit = "0.29"
+taffy = "0.4"
+glyphon = "0.10.0"
+arboard = "3"

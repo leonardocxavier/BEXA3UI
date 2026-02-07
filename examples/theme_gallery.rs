@@ -9,23 +9,26 @@ fn palette_card(title: &str, bg: [f32; 3], text: [u8; 3], metrics: Metrics) -> W
     .with_align(Align::Left)
     .with_padding(8.0);
 
-    WidgetNode::new(Container::new().with_background(bg).with_padding(8.0), vec![WidgetNode::new(label, vec![])])
+    ui! {
+        Container::new().with_background(bg).with_padding(8.0) => {
+            label,
+        }
+    }
 }
 
 fn main() {
     let theme = Theme::ocean();
     let metrics = Metrics::new(18.0, 24.0);
 
-    let row = WidgetNode::new(
-        Flex::row(16.0),
-        vec![
-            palette_card("Ocean", [0.18, 0.30, 0.40], [230, 230, 230], metrics),
-            palette_card("Light", [0.88, 0.90, 0.92], [20, 20, 20], metrics),
-            palette_card("Dark", [0.12, 0.14, 0.18], [230, 230, 230], metrics),
-        ],
-    );
-
-    let root = WidgetNode::new(Container::new().with_padding(32.0), vec![row]);
+    let root = ui! {
+        Container::new().with_padding(32.0) => {
+            Flex::row(16.0) => {
+                palette_card("Ocean", [0.18, 0.30, 0.40], [230, 230, 230], metrics),
+                palette_card("Light", [0.88, 0.90, 0.92], [20, 20, 20], metrics),
+                palette_card("Dark", [0.12, 0.14, 0.18], [230, 230, 230], metrics),
+            },
+        }
+    };
 
     App::new(root)
         .theme(theme)

@@ -8,10 +8,11 @@ fn input_like(label: &str, metrics: Metrics) -> WidgetNode {
         .with_align(Align::Left)
         .with_padding(8.0);
 
-    WidgetNode::new(
-        Container::new().with_background([0.18, 0.30, 0.40]).with_padding(6.0),
-        vec![WidgetNode::new(label, vec![])],
-    )
+    ui! {
+        Container::new().with_background([0.18, 0.30, 0.40]).with_padding(6.0) => {
+            label,
+        }
+    }
 }
 
 fn main() {
@@ -34,26 +35,22 @@ fn main() {
         *status_submit.borrow_mut() = "Form submitted".to_string();
     });
 
-    let form = WidgetNode::new(
-        Flex::column(12.0, 0.0),
-        vec![
-            name_field,
-            server_field,
-            WidgetNode::new(submit, vec![]),
-        ],
-    );
-
     let status_label = Label::new(status, field_metrics, theme.text_primary)
         .with_align(Align::Left)
         .with_padding(6.0);
 
-    let root = WidgetNode::new(
-        Container::new().with_padding(32.0),
-        vec![
-            WidgetNode::new(Container::new().with_background(theme.panel).with_padding(16.0), vec![form]),
-            WidgetNode::new(status_label, vec![]),
-        ],
-    );
+    let root = ui! {
+        Container::new().with_padding(32.0) => {
+            Container::new().with_background(theme.panel).with_padding(16.0) => {
+                Flex::column(12.0, 0.0) => {
+                    name_field,
+                    server_field,
+                    submit,
+                },
+            },
+            status_label,
+        }
+    };
 
     App::new(root)
         .theme(theme)

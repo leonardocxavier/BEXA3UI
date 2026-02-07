@@ -40,31 +40,25 @@ fn main() {
         *status_remote.borrow_mut() = "Connecting to remote...".to_string();
     });
 
-    let row = WidgetNode::new(
-        Flex::row(24.0),
-        vec![
-            WidgetNode::new(local_button, vec![]),
-            WidgetNode::new(remote_button, vec![]),
-        ],
-    );
-
-    let panel = WidgetNode::new(
-        Container::new()
-            .with_background(theme.panel)
-            .with_padding(12.0),
-        vec![row],
-    );
-
     let status_label = Label::new(status.clone(), status_metrics, theme.text_primary)
         .with_align(Align::Left)
         .with_padding(6.0);
 
-    let column = WidgetNode::new(
-        Flex::column(16.0, 0.0),
-        vec![panel, WidgetNode::new(status_label, vec![])],
-    );
-
-    let root = WidgetNode::new(Container::new().with_padding(32.0), vec![column]);
+    let root = ui! {
+        Container::new().with_padding(32.0) => {
+            Flex::column(16.0, 0.0) => {
+                Container::new()
+                    .with_background(theme.panel)
+                    .with_padding(12.0) => {
+                    Flex::row(24.0) => {
+                        local_button,
+                        remote_button,
+                    },
+                },
+                status_label,
+            },
+        }
+    };
 
     App::new(root)
         .theme(theme)

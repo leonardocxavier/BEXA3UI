@@ -3,8 +3,14 @@ name = "bexa-ui-core"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+terminal = ["portable-pty", "vte"]
+
 [dependencies]
 winit = "0.29"
 taffy = "0.4"
 glyphon = "0.10.0"
 arboard = "3"
+portable-pty = { version = "0.9", optional = true }
+vte = { version = "0.15", optional = true }

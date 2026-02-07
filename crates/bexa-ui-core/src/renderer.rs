@@ -35,6 +35,9 @@ pub struct Renderer {
     /// Each entry corresponds to `measure_chars` of the same TextCommand.
     pub text_measures: Vec<Vec<f32>>,
     clip_stack: Vec<ClipRect>,
+    /// Overlay commands drawn on top of everything (for dropdowns, tooltips, etc.)
+    pub overlay_quad_commands: Vec<QuadCommand>,
+    pub overlay_text_commands: Vec<TextCommand>,
 }
 
 impl Renderer {
@@ -44,6 +47,8 @@ impl Renderer {
             text_commands: Vec::new(),
             text_measures: Vec::new(),
             clip_stack: Vec::new(),
+            overlay_quad_commands: Vec::new(),
+            overlay_text_commands: Vec::new(),
         }
     }
 
@@ -52,6 +57,74 @@ impl Renderer {
         self.text_commands.clear();
         self.text_measures.clear();
         self.clip_stack.clear();
+        self.overlay_quad_commands.clear();
+        self.overlay_text_commands.clear();
+    }
+
+    /// Push a quad command to the overlay layer (drawn on top of everything).
+    pub fn overlay_fill_rect_styled(
+        &mut self,
+        rect: (f32, f32, f32, f32),
+        color: [f32; 4],
+        border_radius: f32,
+        border_width: f32,
+        border_color: [f32; 4],
+    ) {
+        self.overlay_quad_commands.push(QuadCommand {
+            rect,
+            color,
+            border_radius,
+            border_width,
+            border_color,
+            clip: None,
+        });
+    }
+
+    /// Push a text command to the overlay layer (drawn on top of everything).
+    pub fn overlay_draw_text(
+        &mut self,
+        text: &str,
+        pos: (f32, f32),
+        color: [u8; 3],
+        bounds: (f32, f32),
+        metrics: Metrics,
+        align: Align,
+    ) {
+        self.overlay_text_commands.push(TextCommand {
+            text: text.to_string(),
+            pos,
+            color,
+            bounds,
+            metrics,
+            align,
+            clip: None,
+            font_family: None,
+            measure_chars: vec![],
+        });
+    }
+
+    /// Push a text command with font to the overlay layer.
+    pub fn overlay_draw_text_with_font(
+        &mut self,
+        text: &str,
+        pos: (f32, f32),
+        color: [u8; 3],
+        bounds: (f32, f32),
+        metrics: Metrics,
+        align: Align,
+        font_family: &str,
+    ) {
+        self.overlay_text_commands.push(TextCommand {
+            text: text.to_string(),
+            pos,
+            color,
+            bounds,
+            metrics,
+            align,
+            clip: None,
+            font_family: Some(font_family.to_string()),
+            measure_chars: vec![],
+        });
     }
 
     pub fn push_clip(&mut self, clip: ClipRect) {

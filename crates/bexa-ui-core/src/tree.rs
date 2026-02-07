@@ -5,11 +5,19 @@ use winit::event::WindowEvent;
 use crate::framework::{DrawContext, EventContext, Widget};
 use crate::renderer::Renderer;
 
+const SCROLLBAR_WIDTH: f32 = 8.0;
+const SCROLLBAR_MARGIN: f32 = 2.0;
+const SCROLLBAR_MIN_THUMB: f32 = 20.0;
+
 pub struct WidgetNode {
     pub(crate) widget: Box<dyn Widget>,
     pub(crate) children: Vec<WidgetNode>,
     pub(crate) node: Option<NodeId>,
     pub(crate) scroll_y: f32,
+    // Scrollbar drag state
+    pub(crate) scrollbar_dragging: bool,
+    pub(crate) scrollbar_drag_start_y: f32,
+    pub(crate) scrollbar_drag_start_scroll: f32,
 }
 
 impl WidgetNode {
@@ -19,6 +27,9 @@ impl WidgetNode {
             children,
             node: None,
             scroll_y: 0.0,
+            scrollbar_dragging: false,
+            scrollbar_drag_start_y: 0.0,
+            scrollbar_drag_start_scroll: 0.0,
         }
     }
 }
@@ -122,7 +133,60 @@ fn draw_widgets_offset(node: &WidgetNode, taffy: &TaffyTree, renderer: &mut Rend
 
     if is_scroll {
         renderer.pop_clip();
+
+        // Draw scrollbar overlay (after pop_clip so it's not clipped with children)
+        let container_h = layout.size.height;
+        let content_h = content_height(node, taffy);
+        if content_h > container_h {
+            draw_scrollbar(renderer, abs_x, abs_y, layout.size.width, container_h, content_h, node.scroll_y);
+        }
     }
+}
+
+fn content_height(node: &WidgetNode, taffy: &TaffyTree) -> f32 {
+    let mut h: f32 = 0.0;
+    for child in &node.children {
+        if let Some(child_id) = child.node {
+            let cl = taffy.layout(child_id).expect("child layout");
+            let bottom = cl.location.y + cl.size.height;
+            h = h.max(bottom);
+        }
+    }
+    h
+}
+
+fn draw_scrollbar(
+    renderer: &mut Renderer,
+    container_x: f32,
+    container_y: f32,
+    container_w: f32,
+    container_h: f32,
+    content_h: f32,
+    scroll_y: f32,
+) {
+    let track_x = container_x + container_w - SCROLLBAR_WIDTH - SCROLLBAR_MARGIN;
+    let track_y = container_y + SCROLLBAR_MARGIN;
+    let track_h = container_h - SCROLLBAR_MARGIN * 2.0;
+
+    // Track background
+    renderer.fill_rect_rounded(
+        (track_x, track_y, SCROLLBAR_WIDTH, track_h),
+        [0.3, 0.3, 0.3, 0.15],
+        SCROLLBAR_WIDTH / 2.0,
+    );
+
+    // Thumb
+    let ratio = container_h / content_h;
+    let thumb_h = (ratio * track_h).max(SCROLLBAR_MIN_THUMB);
+    let max_scroll = (content_h - container_h).max(0.0);
+    let scroll_ratio = if max_scroll > 0.0 { scroll_y / max_scroll } else { 0.0 };
+    let thumb_y = track_y + scroll_ratio * (track_h - thumb_h);
+
+    renderer.fill_rect_rounded(
+        (track_x, thumb_y, SCROLLBAR_WIDTH, thumb_h),
+        [0.6, 0.6, 0.6, 0.5],
+        SCROLLBAR_WIDTH / 2.0,
+    );
 }
 
 pub fn dispatch_event(
@@ -251,6 +315,154 @@ pub fn update_widget_measures(node: &mut WidgetNode, measures: &[Vec<f32>]) {
     node.widget.update_measures(measures);
     for child in &mut node.children {
         update_widget_measures(child, measures);
+    }
+}
+
+/// Handle mouse events on scrollbar overlays. Returns true if a scrollbar consumed the event.
+pub fn handle_scrollbar_event(
+    node: &mut WidgetNode,
+    taffy: &TaffyTree,
+    event: &WindowEvent,
+) -> bool {
+    handle_scrollbar_event_offset(node, taffy, event, 0.0, 0.0)
+}
+
+fn handle_scrollbar_event_offset(
+    node: &mut WidgetNode,
+    taffy: &TaffyTree,
+    event: &WindowEvent,
+    parent_x: f32,
+    parent_y: f32,
+) -> bool {
+    let Some(node_id) = node.node else { return false; };
+    let layout = taffy.layout(node_id).expect("layout");
+    let abs_x = parent_x + layout.location.x;
+    let abs_y = parent_y + layout.location.y;
+
+    // Check children first
+    let child_y = abs_y - node.scroll_y;
+    for child in &mut node.children {
+        if handle_scrollbar_event_offset(child, taffy, event, abs_x, child_y) {
+            return true;
+        }
+    }
+
+    if !node.widget.is_scrollable() {
+        return false;
+    }
+
+    let container_h = layout.size.height;
+    let content_h = content_height(node, taffy);
+    if content_h <= container_h {
+        return false;
+    }
+
+    let _track_y = abs_y + SCROLLBAR_MARGIN;
+    let track_h = container_h - SCROLLBAR_MARGIN * 2.0;
+    let max_scroll = (content_h - container_h).max(0.0);
+    let ratio = container_h / content_h;
+    let thumb_h = (ratio * track_h).max(SCROLLBAR_MIN_THUMB);
+
+    match event {
+        WindowEvent::CursorMoved { position, .. } => {
+            let _cx = position.x as f32;
+            let cy = position.y as f32;
+
+            if node.scrollbar_dragging {
+                // Update scroll based on drag delta
+                let delta_y = cy - node.scrollbar_drag_start_y;
+                let scroll_per_pixel = max_scroll / (track_h - thumb_h);
+                node.scroll_y = (node.scrollbar_drag_start_scroll + delta_y * scroll_per_pixel)
+                    .clamp(0.0, max_scroll);
+                return true;
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Start scrollbar drag if the press landed on the scrollbar thumb/track.
+/// Call this specifically on MouseInput::Pressed events with cursor position.
+pub fn try_start_scrollbar_drag(
+    node: &mut WidgetNode,
+    taffy: &TaffyTree,
+    cx: f32,
+    cy: f32,
+) -> bool {
+    try_start_scrollbar_drag_offset(node, taffy, cx, cy, 0.0, 0.0)
+}
+
+fn try_start_scrollbar_drag_offset(
+    node: &mut WidgetNode,
+    taffy: &TaffyTree,
+    cx: f32,
+    cy: f32,
+    parent_x: f32,
+    parent_y: f32,
+) -> bool {
+    let Some(node_id) = node.node else { return false; };
+    let layout = taffy.layout(node_id).expect("layout");
+    let abs_x = parent_x + layout.location.x;
+    let abs_y = parent_y + layout.location.y;
+
+    let child_y = abs_y - node.scroll_y;
+    for child in &mut node.children {
+        if try_start_scrollbar_drag_offset(child, taffy, cx, cy, abs_x, child_y) {
+            return true;
+        }
+    }
+
+    if !node.widget.is_scrollable() {
+        return false;
+    }
+
+    let container_h = layout.size.height;
+    let content_h = content_height(node, taffy);
+    if content_h <= container_h {
+        return false;
+    }
+
+    let track_x = abs_x + layout.size.width - SCROLLBAR_WIDTH - SCROLLBAR_MARGIN;
+    let track_y = abs_y + SCROLLBAR_MARGIN;
+    let track_h = container_h - SCROLLBAR_MARGIN * 2.0;
+
+    // Check if click is in the scrollbar area
+    let in_scrollbar = cx >= track_x
+        && cx <= track_x + SCROLLBAR_WIDTH + SCROLLBAR_MARGIN
+        && cy >= abs_y
+        && cy <= abs_y + container_h;
+
+    if !in_scrollbar {
+        return false;
+    }
+
+    let max_scroll = (content_h - container_h).max(0.0);
+    let ratio = container_h / content_h;
+    let thumb_h = (ratio * track_h).max(SCROLLBAR_MIN_THUMB);
+    let scroll_ratio = if max_scroll > 0.0 { node.scroll_y / max_scroll } else { 0.0 };
+    let thumb_y = track_y + scroll_ratio * (track_h - thumb_h);
+
+    // Check if click is on the thumb
+    if cy >= thumb_y && cy <= thumb_y + thumb_h {
+        // Start dragging from thumb
+        node.scrollbar_dragging = true;
+        node.scrollbar_drag_start_y = cy;
+        node.scrollbar_drag_start_scroll = node.scroll_y;
+    } else {
+        // Click on track: jump to position
+        let click_ratio = (cy - track_y) / track_h;
+        node.scroll_y = (click_ratio * max_scroll).clamp(0.0, max_scroll);
+    }
+
+    true
+}
+
+/// Release scrollbar drag on all scrollable nodes.
+pub fn release_scrollbar_drag(node: &mut WidgetNode) {
+    node.scrollbar_dragging = false;
+    for child in &mut node.children {
+        release_scrollbar_drag(child);
     }
 }
 

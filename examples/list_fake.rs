@@ -9,7 +9,11 @@ fn list_item(text: &str, metrics: Metrics) -> WidgetNode {
     .with_align(Align::Left)
     .with_padding(6.0);
 
-    WidgetNode::new(Container::new().with_background([0.20, 0.32, 0.44]).with_padding(4.0), vec![WidgetNode::new(label, vec![])])
+    ui! {
+        Container::new().with_background([0.20, 0.32, 0.44]).with_padding(4.0) => {
+            label,
+        }
+    }
 }
 
 fn main() {
@@ -27,12 +31,13 @@ fn main() {
         items,
     );
 
-    let panel = WidgetNode::new(
-        Container::new().with_background(theme.panel).with_padding(12.0),
-        vec![list],
-    );
-
-    let root = WidgetNode::new(Container::new().with_padding(32.0), vec![panel]);
+    let root = ui! {
+        Container::new().with_padding(32.0) => {
+            Container::new().with_background(theme.panel).with_padding(12.0) => {
+                list,
+            },
+        }
+    };
 
     App::new(root)
         .theme(theme)

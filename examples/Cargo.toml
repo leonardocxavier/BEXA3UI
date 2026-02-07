@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+[features]
+default = []
+terminal = ["bexa-ui/terminal"]
+
 [dependencies]
 bexa-ui = { path = "../crates/bexa-ui" }
 
@@ -34,3 +38,12 @@ path = "list_fake.rs"
 [[example]]
 name = "theme_gallery"
 path = "theme_gallery.rs"
+
+[[example]]
+name = "checkbox_radio"
+path = "checkbox_radio.rs"
+
+[[example]]
+name = "terminal"
+path = "terminal.rs"
+required-features = ["terminal"]

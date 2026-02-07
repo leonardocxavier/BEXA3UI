@@ -1021,7 +1021,7 @@ async fn init_gpu(window: Arc<Window>) -> SharedGpu {
     });
 
     let mut font_system = FontSystem::new();
-    let nerd_font_data = include_bytes!("../../../assets/fonts/SymbolsNerdFont-Regular.ttf");
+    let nerd_font_data = include_bytes!("../assets/fonts/SymbolsNerdFont-Regular.ttf");
     font_system
         .db_mut()
         .load_font_data(nerd_font_data.to_vec());

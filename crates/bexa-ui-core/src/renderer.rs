@@ -28,9 +28,25 @@ pub struct TextCommand {
     pub measure_chars: Vec<usize>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImageFit {
+    Fill,
+    Contain,
+    Cover,
+}
+
+pub struct ImageCommand {
+    pub rect: (f32, f32, f32, f32),
+    pub path: String,
+    pub tint: [f32; 4],
+    pub fit: ImageFit,
+    pub clip: Option<ClipRect>,
+}
+
 pub struct Renderer {
     pub quad_commands: Vec<QuadCommand>,
     pub text_commands: Vec<TextCommand>,
+    pub image_commands: Vec<ImageCommand>,
     /// Pixel widths measured by the render layer (indexed by TextCommand index).
     /// Each entry corresponds to `measure_chars` of the same TextCommand.
     pub text_measures: Vec<Vec<f32>>,
@@ -46,6 +62,7 @@ impl Renderer {
         Self {
             quad_commands: Vec::new(),
             text_commands: Vec::new(),
+            image_commands: Vec::new(),
             text_measures: Vec::new(),
             clip_stack: Vec::new(),
             overlay_quad_commands: Vec::new(),
@@ -57,6 +74,7 @@ impl Renderer {
     pub fn clear(&mut self) {
         self.quad_commands.clear();
         self.text_commands.clear();
+        self.image_commands.clear();
         self.text_measures.clear();
         self.clip_stack.clear();
         self.overlay_quad_commands.clear();
@@ -262,5 +280,21 @@ impl Renderer {
             measure_chars,
         });
         idx
+    }
+
+    pub fn draw_image(
+        &mut self,
+        path: &str,
+        rect: (f32, f32, f32, f32),
+        tint: [f32; 4],
+        fit: ImageFit,
+    ) {
+        self.image_commands.push(ImageCommand {
+            rect,
+            path: path.to_string(),
+            tint,
+            fit,
+            clip: self.current_clip(),
+        });
     }
 }

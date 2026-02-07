@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bexa_ui_core::{
     build_taffy, clear_active_widgets, collect_focus_paths, dispatch_event, dispatch_scroll,
     draw_widgets, handle_scrollbar_event, release_scrollbar_drag, sync_styles,
-    try_start_scrollbar_drag, update_widget_measures, widget_mut_at_path, Renderer, Theme,
+    try_start_scrollbar_drag, update_widget_measures, widget_mut_at_path, ImageFit, Renderer, Theme,
     WidgetNode, WindowRequest, WindowRequests,
 };
 use bytemuck::{Pod, Zeroable};
@@ -12,6 +12,7 @@ use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight,
 };
+use image::GenericImageView;
 use taffy::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent};
@@ -149,10 +150,55 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 }
 "#;
 
+const IMAGE_SHADER_SRC: &str = r#"
+struct VertexOut {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) color: vec4<f32>,
+};
+
+@group(0) @binding(0) var image_tex: texture_2d<f32>;
+@group(0) @binding(1) var image_sampler: sampler;
+
+@vertex
+fn vs_main(
+    @location(0) position: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) color: vec4<f32>,
+) -> VertexOut {
+    var out: VertexOut;
+    out.position = vec4<f32>(position, 0.0, 1.0);
+    out.uv = uv;
+    out.color = color;
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    let tex = textureSample(image_tex, image_sampler, in.uv);
+    return tex * in.color;
+}
+"#;
+
 struct DrawBatch {
     start: u32,
     count: u32,
     clip: Option<(f32, f32, f32, f32)>,
+}
+
+struct ImageBatch {
+    start: u32,
+    count: u32,
+    clip: Option<(f32, f32, f32, f32)>,
+    key: String,
+}
+
+struct GpuImage {
+    _texture: wgpu::Texture,
+    _view: wgpu::TextureView,
+    bind_group: wgpu::BindGroup,
+    width: u32,
+    height: u32,
 }
 
 // ── Shared GPU resources (one per application) ──────────────────────────
@@ -162,6 +208,10 @@ struct SharedGpu {
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
+    image_pipeline: wgpu::RenderPipeline,
+    image_bind_group_layout: wgpu::BindGroupLayout,
+    image_sampler: wgpu::Sampler,
+    images: HashMap<String, GpuImage>,
     font_system: FontSystem,
     swash_cache: SwashCache,
     text_atlas: TextAtlas,
@@ -182,6 +232,9 @@ struct WindowState {
     overlay_vertex_count: u32,
     draw_batches: Vec<DrawBatch>,
     overlay_draw_batches: Vec<DrawBatch>,
+    image_vertex_buffer: wgpu::Buffer,
+    image_vertex_count: u32,
+    image_batches: Vec<ImageBatch>,
     text_renderer: TextRenderer,
     overlay_text_renderer: TextRenderer,
     text_viewport: Viewport,
@@ -258,6 +311,12 @@ impl WindowState {
             usage: wgpu::BufferUsages::VERTEX,
             mapped_at_creation: false,
         });
+        let image_vertex_buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Image Vertex Buffer"),
+            size: 4,
+            usage: wgpu::BufferUsages::VERTEX,
+            mapped_at_creation: false,
+        });
 
         let mut ws = Self {
             window,
@@ -270,6 +329,9 @@ impl WindowState {
             overlay_vertex_count: 0,
             draw_batches: Vec::new(),
             overlay_draw_batches: Vec::new(),
+            image_vertex_buffer,
+            image_vertex_count: 0,
+            image_batches: Vec::new(),
             text_renderer,
             overlay_text_renderer,
             text_viewport,
@@ -330,6 +392,7 @@ impl WindowState {
 
         self.build_quad_vertices(viewport, &gpu.device);
         self.build_overlay_vertices(viewport, &gpu.device);
+        self.build_image_vertices(viewport, gpu);
 
         self.text_viewport.update(
             &gpu.queue,
@@ -418,13 +481,40 @@ impl WindowState {
                 render_pass.draw(batch.start..batch.start + batch.count, 0..1);
             }
 
-            // Pass 2: Main text
+            // Pass 2: Images
+            if self.image_vertex_count > 0 {
+                render_pass.set_pipeline(&gpu.image_pipeline);
+                render_pass.set_vertex_buffer(0, self.image_vertex_buffer.slice(..));
+                for batch in &self.image_batches {
+                    let Some(image) = gpu.images.get(&batch.key) else {
+                        continue;
+                    };
+                    if let Some((cx, cy, cw, ch)) = batch.clip {
+                        let sx = (cx.max(0.0) as u32).min(sw);
+                        let sy = (cy.max(0.0) as u32).min(sh);
+                        let right = ((cx + cw).max(0.0) as u32).min(sw);
+                        let bottom = ((cy + ch).max(0.0) as u32).min(sh);
+                        let swidth = right.saturating_sub(sx);
+                        let sheight = bottom.saturating_sub(sy);
+                        if swidth == 0 || sheight == 0 {
+                            continue;
+                        }
+                        render_pass.set_scissor_rect(sx, sy, swidth, sheight);
+                    } else {
+                        render_pass.set_scissor_rect(0, 0, sw, sh);
+                    }
+                    render_pass.set_bind_group(0, &image.bind_group, &[]);
+                    render_pass.draw(batch.start..batch.start + batch.count, 0..1);
+                }
+            }
+
+            // Pass 3: Main text
             render_pass.set_scissor_rect(0, 0, sw, sh);
             self.text_renderer
                 .render(&gpu.text_atlas, &self.text_viewport, &mut render_pass)
                 .expect("render text");
 
-            // Pass 3: Overlay quads
+            // Pass 4: Overlay quads
             if self.overlay_vertex_count > 0 {
                 render_pass.set_pipeline(&gpu.render_pipeline);
                 render_pass.set_vertex_buffer(0, self.overlay_vertex_buffer.slice(..));
@@ -789,6 +879,122 @@ impl WindowState {
                 });
         }
     }
+
+    fn build_image_vertices(&mut self, viewport: (f32, f32), gpu: &mut SharedGpu) {
+        let mut vertices = Vec::with_capacity(self.renderer.image_commands.len() * 6);
+        let (vw, vh) = viewport;
+
+        self.image_batches.clear();
+
+        for cmd in &self.renderer.image_commands {
+            if ensure_image(gpu, &cmd.path).is_none() {
+                continue;
+            }
+
+            let Some(image) = gpu.images.get(&cmd.path) else {
+                continue;
+            };
+
+            let start = vertices.len() as u32;
+            let (x, y, w, h) = cmd.rect;
+            if w <= 0.0 || h <= 0.0 {
+                continue;
+            }
+
+            let iw = image.width.max(1) as f32;
+            let ih = image.height.max(1) as f32;
+            let img_aspect = iw / ih;
+            let rect_aspect = w / h;
+
+            let mut draw_x = x;
+            let mut draw_y = y;
+            let mut draw_w = w;
+            let mut draw_h = h;
+            let mut u0 = 0.0;
+            let mut v0 = 0.0;
+            let mut u1 = 1.0;
+            let mut v1 = 1.0;
+
+            match cmd.fit {
+                ImageFit::Fill => {}
+                ImageFit::Contain => {
+                    if img_aspect > rect_aspect {
+                        draw_h = w / img_aspect;
+                        draw_y = y + (h - draw_h) * 0.5;
+                    } else {
+                        draw_w = h * img_aspect;
+                        draw_x = x + (w - draw_w) * 0.5;
+                    }
+                }
+                ImageFit::Cover => {
+                    if img_aspect > rect_aspect {
+                        let scale = rect_aspect / img_aspect;
+                        let margin = (1.0 - scale) * 0.5;
+                        u0 = margin;
+                        u1 = 1.0 - margin;
+                    } else {
+                        let scale = img_aspect / rect_aspect;
+                        let margin = (1.0 - scale) * 0.5;
+                        v0 = margin;
+                        v1 = 1.0 - margin;
+                    }
+                }
+            }
+
+            if draw_w <= 0.0 || draw_h <= 0.0 {
+                continue;
+            }
+
+            let x0 = (draw_x / vw) * 2.0 - 1.0;
+            let x1 = ((draw_x + draw_w) / vw) * 2.0 - 1.0;
+            let y0 = 1.0 - (draw_y / vh) * 2.0;
+            let y1 = 1.0 - ((draw_y + draw_h) / vh) * 2.0;
+
+            let make_vertex = |px: f32, py: f32, u: f32, v: f32| Vertex {
+                position: [px, py],
+                uv: [u, v],
+                color: cmd.tint,
+                rect_center: [0.0, 0.0],
+                rect_half: [0.0, 0.0],
+                border_radius: 0.0,
+                border_width: 0.0,
+                border_color: [0.0; 4],
+            };
+
+            vertices.push(make_vertex(x0, y1, u0, v1));
+            vertices.push(make_vertex(x1, y1, u1, v1));
+            vertices.push(make_vertex(x1, y0, u1, v0));
+            vertices.push(make_vertex(x0, y1, u0, v1));
+            vertices.push(make_vertex(x1, y0, u1, v0));
+            vertices.push(make_vertex(x0, y0, u0, v0));
+
+            let count = vertices.len() as u32 - start;
+            if count > 0 {
+                self.image_batches.push(ImageBatch {
+                    start,
+                    count,
+                    clip: cmd.clip,
+                    key: cmd.path.clone(),
+                });
+            }
+        }
+
+        self.image_vertex_count = vertices.len() as u32;
+        if vertices.is_empty() {
+            self.image_vertex_buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Image Vertex Buffer"),
+                size: 4,
+                usage: wgpu::BufferUsages::VERTEX,
+                mapped_at_creation: false,
+            });
+        } else {
+            self.image_vertex_buffer = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Image Vertex Buffer"),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+        }
+    }
 }
 
 // ── App (public API) ────────────────────────────────────────────────────
@@ -986,12 +1192,45 @@ async fn init_gpu(window: Arc<Window>) -> SharedGpu {
         source: wgpu::ShaderSource::Wgsl(SHADER_SRC.into()),
     });
 
+    let image_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("Image Shader"),
+        source: wgpu::ShaderSource::Wgsl(IMAGE_SHADER_SRC.into()),
+    });
+
     let render_pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Quad Pipeline Layout"),
             bind_group_layouts: &[],
             immediate_size: 0,
         });
+
+    let image_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Image Bind Group Layout"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ],
+    });
+
+    let image_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Image Pipeline Layout"),
+        bind_group_layouts: &[&image_bind_group_layout],
+        immediate_size: 0,
+    });
 
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("Quad Pipeline"),
@@ -1025,6 +1264,49 @@ async fn init_gpu(window: Arc<Window>) -> SharedGpu {
         cache: None,
     });
 
+    let image_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Image Pipeline"),
+        layout: Some(&image_pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &image_shader,
+            entry_point: Some("vs_main"),
+            buffers: &[Vertex::layout()],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &image_shader,
+            entry_point: Some("fs_main"),
+            targets: &[Some(wgpu::ColorTargetState {
+                format: surface_format,
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: Default::default(),
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: None,
+            ..Default::default()
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview_mask: None,
+        cache: None,
+    });
+
+    let image_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("Image Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+        ..Default::default()
+    });
+
     let mut font_system = FontSystem::new();
     let nerd_font_data = include_bytes!("../assets/fonts/SymbolsNerdFont-Regular.ttf");
     font_system
@@ -1040,11 +1322,89 @@ async fn init_gpu(window: Arc<Window>) -> SharedGpu {
         device,
         queue,
         render_pipeline,
+        image_pipeline,
+        image_bind_group_layout,
+        image_sampler,
+        images: HashMap::new(),
         font_system,
         swash_cache,
         text_atlas,
         surface_format,
     }
+}
+
+fn ensure_image(gpu: &mut SharedGpu, path: &str) -> Option<()> {
+    if gpu.images.contains_key(path) {
+        return Some(());
+    }
+
+    let image = image::open(path).ok()?;
+    let rgba = image.to_rgba8();
+    let (width, height) = image.dimensions();
+
+    let texture = gpu.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Image Texture"),
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+
+    gpu.queue.write_texture(
+        wgpu::TexelCopyTextureInfo {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &rgba,
+        wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(4 * width),
+            rows_per_image: Some(height),
+        },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+    );
+
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Image Bind Group"),
+        layout: &gpu.image_bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&gpu.image_sampler),
+            },
+        ],
+    });
+
+    gpu.images.insert(
+        path.to_string(),
+        GpuImage {
+            _texture: texture,
+            _view: view,
+            bind_group,
+            width,
+            height,
+        },
+    );
+
+    Some(())
 }
 
 // ── Text area builder (shared) ──────────────────────────────────────────

@@ -14,6 +14,7 @@ readme = "../../README.md"
 bexa-ui-core = { version = "0.2.0", path = "../bexa-ui-core" }
 bytemuck = { version = "1.14", features = ["derive"] }
 glyphon = "0.10.0"
+image = "0.25"
 pollster = "0.3"
 taffy = "0.4"
 wgpu = { version = "28", features = ["wgsl"] }

@@ -7,7 +7,7 @@ pub mod tree;
 pub mod widgets;
 
 pub use framework::{DrawContext, EventContext, Widget};
-pub use renderer::{QuadCommand, Renderer, TextCommand};
+pub use renderer::{ImageFit, QuadCommand, Renderer, TextCommand};
 pub use signal::{Signal, SetSignal, IntoSignal, create_signal};
 pub use theme::Theme;
 pub use tree::{
@@ -15,7 +15,7 @@ pub use tree::{
     draw_widgets, handle_scrollbar_event, release_scrollbar_drag, scroll_root, sync_styles,
     try_start_scrollbar_drag, update_widget_measures, widget_mut_at_path, WidgetNode,
 };
-pub use widgets::{Bar, BarChart, Button, Checkbox, Column, Container, Flex, Icon, Label, Modal, RadioButton, radio_group, Select, Table, Tabs, TextInput, Tooltip, TooltipPosition, TreeNode, TreeView};
+pub use widgets::{Bar, BarChart, Button, Checkbox, Column, Container, Flex, Icon, Image, Label, Modal, RadioButton, radio_group, ScrollView, Select, Slider, Table, Tabs, TextInput, Toggle, Tooltip, TooltipPosition, TreeNode, TreeView};
 
 #[cfg(feature = "terminal")]
 pub use widgets::Terminal;

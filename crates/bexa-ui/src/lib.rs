@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Leonardo C. Xavier
+// SPDX-License-Identifier: GPL-3.0-or-later OR Commercial
+// See LICENSE and LICENSE-COMMERCIAL for details.
+
 pub use bexa_ui_core::*;
 pub use bexa_ui_render::App;
 

@@ -40,6 +40,15 @@ BexaUI is **not** a general-purpose GUI framework. It is optimized for:
 | `RadioButton` | Radio button groups with shared signal |
 | `Select` | Dropdown select with overlay rendering |
 | `Icon` | Nerd Font icon rendering |
+| `Tabs` | Tab container with switchable panels |
+| `Table` | Data table with headers and rows |
+| `TreeView` | Expandable/collapsible tree hierarchy |
+| `BarChart` | Simple bar chart visualization |
+| `Tooltip` | Hover tooltip with configurable position |
+| `Modal` | Overlay modal dialog |
+| `Toggle` | On/off switch widget |
+| `Slider` | Range slider input |
+| `Image` | Image display with Fill/Contain/Cover fit modes |
 | `Terminal` | PTY-backed terminal emulator (feature-gated) |
 
 ## Quick Start
@@ -181,14 +190,15 @@ cargo run -p bexa-ui-examples --example widget_showcase
 - [x] Scrollbar
 - [x] Multi-window support
 - [x] Terminal widget (PTY + VT100)
+- [x] Tabs / Table / TreeView / BarChart
+- [x] Tooltip / Modal
+- [x] Toggle / Slider
+- [x] Image widget (Fill, Contain, Cover)
+- [x] Theme system (Ocean, Light, Dark)
 
 **Next:**
-- [ ] Table / DataGrid
-- [ ] Slider widget
-- [ ] Image widget
 - [ ] Animations and transitions
 - [ ] Accessibility (screen readers)
-- [ ] Publish to crates.io
 - [ ] CI/CD with GitHub Actions
 
 ## Contributing
@@ -196,9 +206,9 @@ cargo run -p bexa-ui-examples --example widget_showcase
 Contributions are welcome! BexaUI is especially looking for help with:
 
 - Terminal emulation improvements (mouse support, 24-bit color, scrollback)
-- New widgets (Table, Slider, Tree view)
 - Testing and CI setup
 - Documentation and examples
+- Animations and transitions
 
 Feel free to open issues, submit pull requests, or suggest new features.
 
@@ -210,4 +220,9 @@ If you find BexaUI useful and want to support its development:
 
 ## License
 
-MIT
+BexaUI is dual-licensed:
+
+- **Open Source (GPL-3.0-or-later):** Free for open source projects distributed under GPL-compatible licenses. See [LICENSE](LICENSE).
+- **Commercial License:** Required for proprietary/closed-source software. See [LICENSE-COMMERCIAL](LICENSE-COMMERCIAL) for details.
+
+If you want to use BexaUI in a commercial product without open-sourcing your code, please contact contato@bexa3.com.br for licensing.

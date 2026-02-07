@@ -10,21 +10,22 @@ fn label_node(text: &str, metrics: Metrics) -> WidgetNode {
 
 fn image_card(title: &str, fit: ImageFit, path: &str, metrics: Metrics) -> WidgetNode {
     let image = Image::new(path)
-        .with_size(220.0, 140.0)
+        .with_size(260.0, 170.0)
         .with_fit(fit)
         .with_background([0.10, 0.12, 0.16, 1.0])
-        .with_border_radius(6.0);
+        .with_border_radius(8.0);
 
-    WidgetNode::new(
+    let image_box = WidgetNode::new(
         Container::new()
             .with_background([0.08, 0.10, 0.14])
-            .with_padding(12.0)
-            .with_border_radius(8.0)
+            .with_border_radius(10.0)
             .with_border(1.0, [0.18, 0.22, 0.32, 1.0]),
-        vec![
-            label_node(title, metrics),
-            WidgetNode::new(image, vec![]),
-        ],
+        vec![WidgetNode::new(image, vec![])],
+    );
+
+    WidgetNode::new(
+        Flex::column(8.0, 0.0),
+        vec![label_node(title, metrics), image_box],
     )
 }
 
@@ -46,7 +47,7 @@ fn main() {
         Container::new()
             .with_background([0.05, 0.06, 0.09])
             .with_padding(24.0)
-            .with_gap(12.0),
+            .with_gap(16.0),
         vec![
             label_node("Image Fit Demo", Metrics::new(20.0, 28.0)),
             row,

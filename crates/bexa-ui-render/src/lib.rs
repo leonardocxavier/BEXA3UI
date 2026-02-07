@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Leonardo C. Xavier
+// SPDX-License-Identifier: GPL-3.0-or-later OR Commercial
+// See LICENSE and LICENSE-COMMERCIAL for details.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

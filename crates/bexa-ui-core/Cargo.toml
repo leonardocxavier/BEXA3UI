@@ -2,6 +2,13 @@
 name = "bexa-ui-core"
 version = "0.1.0"
 edition = "2024"
+description = "Core widgets, layout, and signals for BexaUI — the hacker's UI toolkit for Rust"
+license = "MIT"
+repository = "https://github.com/leonardocxavier/BEXA3UI"
+homepage = "https://github.com/leonardocxavier/BEXA3UI"
+keywords = ["gui", "ui", "wgpu", "terminal", "devtools"]
+categories = ["gui", "graphics"]
+readme = "../../README.md"
 
 [features]
 default = []

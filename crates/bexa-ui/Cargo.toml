@@ -2,11 +2,18 @@
 name = "bexa-ui"
 version = "0.1.0"
 edition = "2024"
+description = "The hacker's UI toolkit for Rust — GPU-accelerated devtools, terminals, and dashboards"
+license = "MIT"
+repository = "https://github.com/leonardocxavier/BEXA3UI"
+homepage = "https://github.com/leonardocxavier/BEXA3UI"
+keywords = ["gui", "ui", "wgpu", "terminal", "devtools"]
+categories = ["gui", "graphics"]
+readme = "../../README.md"
 
 [features]
 default = []
 terminal = ["bexa-ui-core/terminal"]
 
 [dependencies]
-bexa-ui-core = { path = "../bexa-ui-core" }
-bexa-ui-render = { path = "../bexa-ui-render" }
+bexa-ui-core = { version = "0.1.0", path = "../bexa-ui-core" }
+bexa-ui-render = { version = "0.1.0", path = "../bexa-ui-render" }

@@ -47,3 +47,8 @@ path = "checkbox_radio.rs"
 name = "terminal"
 path = "terminal.rs"
 required-features = ["terminal"]
+
+[[example]]
+name = "devops_console"
+path = "devops_console.rs"
+required-features = ["terminal"]

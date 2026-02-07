@@ -4,10 +4,10 @@ use std::sync::{Arc, Mutex};
 use glyphon::cosmic_text::Align;
 use glyphon::Metrics;
 use taffy::prelude::*;
-use winit::event::{ElementState, KeyEvent};
+use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
-use crate::framework::{DrawContext, Widget};
+use crate::framework::{DrawContext, EventContext, Widget};
 
 // ── Terminal cell ────────────────────────────────────────────────────────
 
@@ -756,6 +756,19 @@ impl Widget for Terminal {
             }
             _ => false,
         }
+    }
+
+    fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
+        if let WindowEvent::MouseInput {
+            state: ElementState::Pressed,
+            button: MouseButton::Left,
+            ..
+        } = ctx.event
+        {
+            // Click anywhere on the terminal area to focus it
+            return true;
+        }
+        false
     }
 
     fn is_focusable(&self) -> bool {

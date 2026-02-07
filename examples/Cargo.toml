@@ -49,6 +49,10 @@ path = "terminal.rs"
 required-features = ["terminal"]
 
 [[example]]
+name = "widget_showcase"
+path = "widget_showcase.rs"
+
+[[example]]
 name = "devops_console"
 path = "devops_console.rs"
 required-features = ["terminal"]

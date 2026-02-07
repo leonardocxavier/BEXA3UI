@@ -117,8 +117,14 @@ impl Button {
 
 impl Widget for Button {
     fn style(&self) -> Style {
+        let h = self.metrics.line_height + self.padding * 2.0;
         Style {
             flex_grow: 1.0,
+            flex_shrink: 0.0,
+            size: Size {
+                width: Dimension::Auto,
+                height: Dimension::Length(h),
+            },
             ..Default::default()
         }
     }
@@ -156,14 +162,11 @@ impl Widget for Button {
 
     fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
         let layout = ctx.layout;
-        let mut changed = false;
         match ctx.event {
             WindowEvent::CursorMoved { position, .. } => {
                 let over = self.hit_test(layout, position.x as f32, position.y as f32);
-                if over != self.hover {
-                    self.hover = over;
-                    changed = true;
-                }
+                self.hover = over;
+                false // don't consume — let siblings update hover too
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -173,13 +176,13 @@ impl Widget for Button {
                 if self.hover {
                     self.active = !self.active;
                     self.click();
-                    changed = true;
+                    true
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => false,
         }
-
-        changed
     }
 
     fn is_focusable(&self) -> bool {

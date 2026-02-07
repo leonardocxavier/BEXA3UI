@@ -56,3 +56,7 @@ path = "widget_showcase.rs"
 name = "devops_console"
 path = "devops_console.rs"
 required-features = ["terminal"]
+
+[[example]]
+name = "mega_dashboard"
+path = "mega_dashboard.rs"

@@ -4,8 +4,8 @@ pub use bexa_ui_render::App;
 pub mod prelude {
     pub use bexa_ui_core::{
         Align, Bar, BarChart, Button, Checkbox, Column, Container, Flex, Icon, Label, Metrics,
-        RadioButton, radio_group, Renderer, Select, Table, Tabs, TextInput, Theme,
-        TreeNode, TreeView, Widget, WidgetNode,
+        Modal, RadioButton, radio_group, Renderer, Select, Table, Tabs, TextInput, Theme,
+        Tooltip, TooltipPosition, TreeNode, TreeView, Widget, WidgetNode,
         Signal, SetSignal, create_signal, icons,
         WindowRequest, WindowRequests, create_window_requests,
         ui,

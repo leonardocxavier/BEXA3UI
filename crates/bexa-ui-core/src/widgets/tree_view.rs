@@ -309,7 +309,6 @@ impl Widget for TreeView {
 
     fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
         let layout = ctx.layout;
-        let mut changed = false;
 
         match ctx.event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -328,10 +327,8 @@ impl Widget for TreeView {
                     None
                 };
 
-                if new_hover != self.hover_flat_idx {
-                    self.hover_flat_idx = new_hover;
-                    changed = true;
-                }
+                self.hover_flat_idx = new_hover;
+                false // don't consume — let siblings update hover too
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -341,13 +338,13 @@ impl Widget for TreeView {
                 if let Some(idx) = self.hover_flat_idx {
                     self.selected_flat_idx = Some(idx);
                     self.toggle(idx);
-                    changed = true;
+                    true
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => false,
         }
-
-        changed
     }
 
     fn handle_key_event(&mut self, event: &KeyEvent, _modifiers: ModifiersState) -> bool {

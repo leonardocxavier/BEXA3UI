@@ -174,15 +174,32 @@ impl Widget for Select {
         self.item_height.set(self.metrics.line_height + self.padding);
 
         // Draw the select box
-        let border_w = if self.focus { 2.0 } else { 1.0 };
+        let border_w = if self.focus { 2.0 } else if self.hover { 1.5 } else { 1.0 };
         let border_c = if self.focus {
             [0.3, 0.6, 0.9, 1.0]
+        } else if self.hover {
+            [
+                (self.border[0] + 0.1).min(1.0),
+                (self.border[1] + 0.1).min(1.0),
+                (self.border[2] + 0.1).min(1.0),
+                self.border[3],
+            ]
         } else {
             self.border
         };
+        let select_bg = if self.hover && !self.open {
+            [
+                (self.bg[0] + 0.04).min(1.0),
+                (self.bg[1] + 0.04).min(1.0),
+                (self.bg[2] + 0.04).min(1.0),
+                self.bg[3],
+            ]
+        } else {
+            self.bg
+        };
         ctx.renderer.fill_rect_styled(
             (x, y, w, h),
-            self.bg,
+            select_bg,
             self.border_radius,
             border_w,
             border_c,
@@ -271,26 +288,19 @@ impl Widget for Select {
 
     fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
         let layout = ctx.layout;
-        let mut changed = false;
 
         match ctx.event {
             WindowEvent::CursorMoved { position, .. } => {
                 let px = position.x as f32;
                 let py = position.y as f32;
                 let over = self.hit_test(layout, px, py);
-                if over != self.hover {
-                    self.hover = over;
-                    changed = true;
-                }
+                self.hover = over;
 
                 // Track hover over dropdown items
                 if self.open {
-                    let new_hover = self.dropdown_item_at(px, py);
-                    if new_hover != self.hover_index {
-                        self.hover_index = new_hover;
-                        changed = true;
-                    }
+                    self.hover_index = self.dropdown_item_at(px, py);
                 }
+                false // don't consume — let siblings update hover too
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -299,30 +309,24 @@ impl Widget for Select {
             } => {
                 if self.open {
                     // Check if clicking on dropdown item
-                    // We need cursor position — use cached abs position
                     if let Some(idx) = self.hover_index {
                         self.set_selected.set(idx);
                         self.open = false;
                         self.hover_index = None;
-                        changed = true;
-                    } else if self.hover {
-                        // Clicked on the select box itself while open → close
-                        self.open = false;
-                        changed = true;
                     } else {
-                        // Clicked outside → close
+                        // Clicked outside or on the select box → close
                         self.open = false;
-                        changed = true;
                     }
+                    true
                 } else if self.hover {
                     self.open = true;
-                    changed = true;
+                    true
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => false,
         }
-
-        changed
     }
 
     fn handle_key_event(&mut self, event: &KeyEvent, _modifiers: ModifiersState) -> bool {

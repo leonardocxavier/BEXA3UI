@@ -37,6 +37,7 @@ pub struct TextInput {
     mouse_dragging: bool,
     /// Last known cursor position (window coords)
     last_mouse_x: f32,
+    last_mouse_y: f32,
     /// Index of the text command emitted during draw (for measure feedback)
     text_cmd_index: Cell<Option<usize>>,
 }
@@ -64,6 +65,7 @@ impl TextInput {
             char_edges: Vec::new(),
             mouse_dragging: false,
             last_mouse_x: 0.0,
+            last_mouse_y: 0.0,
             text_cmd_index: Cell::new(None),
         }
     }
@@ -386,7 +388,7 @@ impl Widget for TextInput {
                 button: MouseButton::Left,
                 ..
             } => {
-                if self.hit_test(layout, self.last_mouse_x, layout.location.y + 1.0) {
+                if self.hit_test(layout, self.last_mouse_x, self.last_mouse_y) {
                     let pos = self.char_pos_from_x(layout, self.last_mouse_x);
                     self.cursor_pos = pos;
                     self.selection = None;
@@ -407,6 +409,7 @@ impl Widget for TextInput {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.last_mouse_x = position.x as f32;
+                self.last_mouse_y = position.y as f32;
                 if self.mouse_dragging && self.focused {
                     let pos = self.char_pos_from_x(layout, position.x as f32);
                     if pos != self.cursor_pos {
@@ -422,10 +425,8 @@ impl Widget for TextInput {
                         }
                         self.last_input_time = Instant::now();
                     }
-                    true
-                } else {
-                    false
                 }
+                false
             }
             _ => false,
         }

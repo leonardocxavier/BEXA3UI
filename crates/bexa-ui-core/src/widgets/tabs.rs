@@ -219,7 +219,6 @@ impl Widget for Tabs {
 
     fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
         let layout = ctx.layout;
-        let mut changed = false;
 
         match ctx.event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -229,15 +228,9 @@ impl Widget for Tabs {
                     && px <= layout.location.x + layout.size.width
                     && py >= layout.location.y
                     && py <= layout.location.y + self.tab_height;
-                if over != self.hover {
-                    self.hover = over;
-                    changed = true;
-                }
-                let new_hover = self.tab_at(layout, px, py);
-                if new_hover != self.hover_index {
-                    self.hover_index = new_hover;
-                    changed = true;
-                }
+                self.hover = over;
+                self.hover_index = self.tab_at(layout, px, py);
+                false
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -246,13 +239,13 @@ impl Widget for Tabs {
             } => {
                 if let Some(idx) = self.hover_index {
                     self.set_active.set(idx);
-                    changed = true;
+                    true
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => false,
         }
-
-        changed
     }
 
     fn handle_key_event(&mut self, event: &KeyEvent, _modifiers: ModifiersState) -> bool {

@@ -39,4 +39,44 @@ impl Theme {
             radio_dot: [0.20, 0.65, 0.85, 1.0],
         }
     }
+
+    pub fn dark() -> Self {
+        Self {
+            background: [0.08, 0.08, 0.10],
+            panel: [0.12, 0.12, 0.15],
+            button: [0.30, 0.30, 0.38],
+            button_hover: [0.40, 0.40, 0.50],
+            button_active: [0.22, 0.22, 0.28],
+            button_focus: [0.35, 0.35, 0.45],
+            text_primary: [225, 225, 230],
+            text_secondary: [160, 165, 175],
+            checkbox_bg: [0.15, 0.15, 0.20, 1.0],
+            checkbox_checked_bg: [0.35, 0.55, 0.80, 1.0],
+            checkbox_border: [0.35, 0.38, 0.48, 1.0],
+            checkbox_check: [255, 255, 255],
+            radio_bg: [0.15, 0.15, 0.20, 1.0],
+            radio_border: [0.35, 0.38, 0.48, 1.0],
+            radio_dot: [0.35, 0.55, 0.80, 1.0],
+        }
+    }
+
+    pub fn light() -> Self {
+        Self {
+            background: [0.94, 0.94, 0.96],
+            panel: [1.0, 1.0, 1.0],
+            button: [0.22, 0.50, 0.78],
+            button_hover: [0.28, 0.58, 0.85],
+            button_active: [0.18, 0.42, 0.68],
+            button_focus: [0.25, 0.55, 0.82],
+            text_primary: [30, 30, 35],
+            text_secondary: [80, 85, 95],
+            checkbox_bg: [1.0, 1.0, 1.0, 1.0],
+            checkbox_checked_bg: [0.22, 0.50, 0.78, 1.0],
+            checkbox_border: [0.70, 0.72, 0.78, 1.0],
+            checkbox_check: [255, 255, 255],
+            radio_bg: [1.0, 1.0, 1.0, 1.0],
+            radio_border: [0.70, 0.72, 0.78, 1.0],
+            radio_dot: [0.22, 0.50, 0.78, 1.0],
+        }
+    }
 }

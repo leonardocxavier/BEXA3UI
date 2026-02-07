@@ -15,7 +15,7 @@ pub use tree::{
     draw_widgets, handle_scrollbar_event, release_scrollbar_drag, scroll_root, sync_styles,
     try_start_scrollbar_drag, update_widget_measures, widget_mut_at_path, WidgetNode,
 };
-pub use widgets::{Bar, BarChart, Button, Checkbox, Column, Container, Flex, Icon, Label, RadioButton, radio_group, Select, Table, Tabs, TextInput, TreeNode, TreeView};
+pub use widgets::{Bar, BarChart, Button, Checkbox, Column, Container, Flex, Icon, Label, Modal, RadioButton, radio_group, Select, Table, Tabs, TextInput, Tooltip, TooltipPosition, TreeNode, TreeView};
 
 #[cfg(feature = "terminal")]
 pub use widgets::Terminal;

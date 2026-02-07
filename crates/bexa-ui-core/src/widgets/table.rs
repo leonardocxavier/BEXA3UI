@@ -280,7 +280,6 @@ impl Widget for Table {
 
     fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
         let layout = ctx.layout;
-        let mut changed = false;
 
         match ctx.event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -297,10 +296,8 @@ impl Widget for Table {
                     None
                 };
 
-                if new_hover != self.hover_row {
-                    self.hover_row = new_hover;
-                    changed = true;
-                }
+                self.hover_row = new_hover;
+                false // don't consume — let siblings update hover too
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -314,13 +311,13 @@ impl Widget for Table {
                     } else {
                         self.set_selected_row.set(Some(idx));
                     }
-                    changed = true;
+                    true
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => false,
         }
-
-        changed
     }
 
     fn handle_key_event(&mut self, event: &KeyEvent, _modifiers: ModifiersState) -> bool {

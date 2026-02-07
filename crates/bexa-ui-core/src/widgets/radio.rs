@@ -115,15 +115,32 @@ impl Widget for RadioButton {
         let cx = layout.location.x + 4.0;
         let cy = layout.location.y + (layout.size.height - self.circle_size) / 2.0;
         let radius = self.circle_size / 2.0;
-        let border_w = if self.focus { 2.0 } else { 1.0 };
+        let border_w = if self.focus { 2.0 } else if self.hover { 1.5 } else { 1.0 };
         let border_c = if self.focus {
             [0.3, 0.6, 0.9, 1.0]
+        } else if self.hover {
+            [
+                (self.circle_border[0] + 0.1).min(1.0),
+                (self.circle_border[1] + 0.1).min(1.0),
+                (self.circle_border[2] + 0.1).min(1.0),
+                self.circle_border[3],
+            ]
         } else {
             self.circle_border
         };
+        let circle_bg = if self.hover && !selected {
+            [
+                (self.circle_bg[0] + 0.06).min(1.0),
+                (self.circle_bg[1] + 0.06).min(1.0),
+                (self.circle_bg[2] + 0.06).min(1.0),
+                self.circle_bg[3],
+            ]
+        } else {
+            self.circle_bg
+        };
         ctx.renderer.fill_rect_styled(
             (cx, cy, self.circle_size, self.circle_size),
-            self.circle_bg,
+            circle_bg,
             radius,
             border_w,
             border_c,
@@ -157,14 +174,11 @@ impl Widget for RadioButton {
 
     fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
         let layout = ctx.layout;
-        let mut changed = false;
         match ctx.event {
             WindowEvent::CursorMoved { position, .. } => {
                 let over = self.hit_test(layout, position.x as f32, position.y as f32);
-                if over != self.hover {
-                    self.hover = over;
-                    changed = true;
-                }
+                self.hover = over;
+                false // don't consume — let siblings update hover too
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -173,12 +187,13 @@ impl Widget for RadioButton {
             } => {
                 if self.hover && !self.is_selected() {
                     self.select();
-                    changed = true;
+                    true
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => false,
         }
-        changed
     }
 
     fn handle_key_event(&mut self, event: &KeyEvent, _modifiers: ModifiersState) -> bool {

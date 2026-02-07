@@ -325,6 +325,7 @@ impl WindowState {
 
         let viewport = (self.size.width as f32, self.size.height as f32);
         self.renderer.clear();
+        self.renderer.set_viewport_size(viewport);
         draw_widgets(&self.root, &self.taffy, &mut self.renderer);
 
         self.build_quad_vertices(viewport, &gpu.device);
@@ -625,6 +626,10 @@ impl WindowState {
     fn set_focus_by_path(&mut self, path: &[usize]) {
         if let Some(index) = self.focus_paths.iter().position(|p| p == path) {
             self.set_focus(Some(index));
+        } else {
+            // Clicked on a non-focusable widget — clear focus so the
+            // previously focused widget (e.g. TextInput) stops capturing input.
+            self.set_focus(None);
         }
     }
 

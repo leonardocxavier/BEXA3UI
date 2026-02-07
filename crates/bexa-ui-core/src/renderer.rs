@@ -38,6 +38,7 @@ pub struct Renderer {
     /// Overlay commands drawn on top of everything (for dropdowns, tooltips, etc.)
     pub overlay_quad_commands: Vec<QuadCommand>,
     pub overlay_text_commands: Vec<TextCommand>,
+    viewport_size: (f32, f32),
 }
 
 impl Renderer {
@@ -49,6 +50,7 @@ impl Renderer {
             clip_stack: Vec::new(),
             overlay_quad_commands: Vec::new(),
             overlay_text_commands: Vec::new(),
+            viewport_size: (0.0, 0.0),
         }
     }
 
@@ -59,6 +61,14 @@ impl Renderer {
         self.clip_stack.clear();
         self.overlay_quad_commands.clear();
         self.overlay_text_commands.clear();
+    }
+
+    pub fn set_viewport_size(&mut self, size: (f32, f32)) {
+        self.viewport_size = size;
+    }
+
+    pub fn viewport_size(&self) -> (f32, f32) {
+        self.viewport_size
     }
 
     /// Push a quad command to the overlay layer (drawn on top of everything).

@@ -264,7 +264,6 @@ impl Widget for BarChart {
 
     fn handle_event(&mut self, ctx: &mut EventContext) -> bool {
         let layout = ctx.layout;
-        let mut changed = false;
 
         match ctx.event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -302,23 +301,10 @@ impl Widget for BarChart {
                     None
                 };
 
-                if new_hover != self.hover_index {
-                    self.hover_index = new_hover;
-                    changed = true;
-                }
+                self.hover_index = new_hover;
+                false // don't consume — let siblings update hover too
             }
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button: MouseButton::Left,
-                ..
-            } => {
-                if self.hover_index.is_some() {
-                    changed = true;
-                }
-            }
-            _ => {}
+            _ => false,
         }
-
-        changed
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "bexa-ui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "The hacker's UI toolkit for Rust — GPU-accelerated devtools, terminals, and dashboards"
 license = "MIT"
@@ -15,5 +15,5 @@ default = []
 terminal = ["bexa-ui-core/terminal"]
 
 [dependencies]
-bexa-ui-core = { version = "0.1.0", path = "../bexa-ui-core" }
-bexa-ui-render = { version = "0.1.0", path = "../bexa-ui-render" }
+bexa-ui-core = { version = "0.2.0", path = "../bexa-ui-core" }
+bexa-ui-render = { version = "0.2.0", path = "../bexa-ui-render" }

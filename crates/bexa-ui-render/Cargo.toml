@@ -1,6 +1,6 @@
 [package]
 name = "bexa-ui-render"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "GPU rendering backend for BexaUI — wgpu + glyphon text rendering"
 license = "MIT"
@@ -11,7 +11,7 @@ categories = ["gui", "graphics", "rendering"]
 readme = "../../README.md"
 
 [dependencies]
-bexa-ui-core = { version = "0.1.0", path = "../bexa-ui-core" }
+bexa-ui-core = { version = "0.2.0", path = "../bexa-ui-core" }
 bytemuck = { version = "1.14", features = ["derive"] }
 glyphon = "0.10.0"
 pollster = "0.3"

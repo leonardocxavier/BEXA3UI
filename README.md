@@ -154,7 +154,11 @@ cargo run -p bexa-ui-examples --example theme_gallery
 
 # Grid layout
 cargo run -p bexa-ui-examples --example layout_grid
+
+#ShowCase
+cargo run -p bexa-ui-examples --example widget_showcase
 ```
+![alt text](image.png)
 
 ## Dependencies
 

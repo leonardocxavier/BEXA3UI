@@ -49,6 +49,10 @@ path = "terminal.rs"
 required-features = ["terminal"]
 
 [[example]]
+name = "conditional_rendering"
+path = "conditional_rendering.rs"
+
+[[example]]
 name = "widget_showcase"
 path = "widget_showcase.rs"
 
@@ -64,3 +68,7 @@ path = "mega_dashboard.rs"
 [[example]]
 name = "image_fit"
 path = "image_fit.rs"
+
+[[example]]
+name = "for_loop_rendering"
+path = "for_loop_rendering.rs"

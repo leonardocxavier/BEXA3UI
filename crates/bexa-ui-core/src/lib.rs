@@ -4,6 +4,7 @@
 
 pub mod framework;
 pub mod icons;
+pub mod reactive;
 pub mod renderer;
 pub mod signal;
 pub mod theme;
@@ -11,6 +12,7 @@ pub mod tree;
 pub mod widgets;
 
 pub use framework::{DrawContext, EventContext, Widget};
+pub use reactive::{create_effect, signal_changed};
 pub use renderer::{ImageFit, QuadCommand, Renderer, TextCommand};
 pub use signal::{Signal, SetSignal, IntoSignal, create_signal};
 pub use theme::Theme;
@@ -55,14 +57,25 @@ pub fn create_window_requests() -> WindowRequests {
 ///     Container::new() => {
 ///         Flex::row(12.0) => { btn_a, btn_b },
 ///         label,
+///         if (show_extra) {
+///             extra_widget,
+///         },
+///         if (condition) {
+///             TrueWidget => { child }
+///         } else {
+///             FalseWidget => { other_child }
+///         }
 ///     }
 /// }
 /// ```
 ///
 /// - `widget => { children... }` — container with children
 /// - `widget` — leaf node (no children), automatically wrapped
+/// - `if (cond) { items... }` — conditional rendering (optional)
+/// - `if (cond) { items... } else { items... }` — conditional with alternative
 /// - Children can be bare widgets or nested `container => { ... }` expressions
 /// - `ui!(widget)` still works for explicit leaf wrapping
+/// - **Note:** Conditions must be wrapped in parentheses `if (expr) { ... }`
 #[macro_export]
 macro_rules! ui {
     // Container with children: Widget => { child, child, ... }
@@ -77,12 +90,71 @@ macro_rules! ui {
 }
 
 /// Internal macro to parse a comma-separated list of UI items.
-/// Each item is either `widget => { children }` or a bare expression.
+/// Each item is either `widget => { children }`, a bare expression, or a conditional (if/else).
 #[macro_export]
 #[doc(hidden)]
 macro_rules! ui_items {
     // Empty
     () => { vec![] };
+
+    // Conditional: if (expr) { items... } else { items... }, rest...
+    ( if ( $cond:expr ) { $( $if_items:tt )* } else { $( $else_items:tt )* } , $( $rest:tt )* ) => {{
+        let mut v = if $cond {
+            $crate::ui_items![ $( $if_items )* ]
+        } else {
+            $crate::ui_items![ $( $else_items )* ]
+        };
+        v.extend( $crate::ui_items![ $( $rest )* ] );
+        v
+    }};
+
+    // Conditional: if (expr) { items... } else { items... } (last, no trailing comma)
+    ( if ( $cond:expr ) { $( $if_items:tt )* } else { $( $else_items:tt )* } ) => {
+        if $cond {
+            $crate::ui_items![ $( $if_items )* ]
+        } else {
+            $crate::ui_items![ $( $else_items )* ]
+        }
+    };
+
+    // Conditional: if (expr) { items... }, rest... (no else branch)
+    ( if ( $cond:expr ) { $( $if_items:tt )* } , $( $rest:tt )* ) => {{
+        let mut v = if $cond {
+            $crate::ui_items![ $( $if_items )* ]
+        } else {
+            vec![]
+        };
+        v.extend( $crate::ui_items![ $( $rest )* ] );
+        v
+    }};
+
+    // Conditional: if (expr) { items... } (last, no trailing comma, no else branch)
+    ( if ( $cond:expr ) { $( $if_items:tt )* } ) => {
+        if $cond {
+            $crate::ui_items![ $( $if_items )* ]
+        } else {
+            vec![]
+        }
+    };
+
+    // For loop: for item in (collection) { items... }, rest...
+    ( for $item:pat in ( $collection:expr ) { $( $loop_items:tt )* } , $( $rest:tt )* ) => {{
+        let mut v = Vec::new();
+        for $item in $collection {
+            v.extend($crate::ui_items![ $( $loop_items )* ]);
+        }
+        v.extend($crate::ui_items![ $( $rest )* ]);
+        v
+    }};
+
+    // For loop: for item in (collection) { items... } (last, no trailing comma)
+    ( for $item:pat in ( $collection:expr ) { $( $loop_items:tt )* } ) => {{
+        let mut v = Vec::new();
+        for $item in $collection {
+            v.extend($crate::ui_items![ $( $loop_items )* ]);
+        }
+        v
+    }};
 
     // Container item: expr => { ... }, rest...
     ( $widget:expr => { $( $inner:tt )* } , $( $rest:tt )* ) => {{
